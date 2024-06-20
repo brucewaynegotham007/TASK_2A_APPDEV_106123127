@@ -699,6 +699,7 @@ fun gamePageBase(navController: NavController) {
             }
         }
     }
+    //
     if(!shotFired.value && cheeseCount.value > 0) {
         Column(
             modifier = Modifier.padding(top = 0.dp , start = 35.dp),
