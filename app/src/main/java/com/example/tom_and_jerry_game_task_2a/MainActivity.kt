@@ -85,6 +85,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.tom_and_jerry_game_task_2a.ui.theme.Tom_and_Jerry_game_task_2aTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -207,15 +208,17 @@ fun powerUps(cheeseCount: MutableState<Int> , count: MutableState<Int>) {
                             painter = painterResource(id = R.drawable.immunity_icon),
                             contentDescription = "immunity",
                             modifier = Modifier.clickable {
-                                immunity.value = true
                                 showImmunity.value = false
                             }
                         )
-                        LaunchedEffect(immunity.value) {
-                            delay(5000L)
-                            immunity.value = false
-                        }
                     }
+                }
+            }
+            LaunchedEffect(showImmunity.value) {
+                if(!showImmunity.value) {
+                    immunity.value = true
+                    delay(5000L)
+                    immunity.value = false
                 }
             }
         }
