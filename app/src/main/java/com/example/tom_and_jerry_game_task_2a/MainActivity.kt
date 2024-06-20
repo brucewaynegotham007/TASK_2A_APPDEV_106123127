@@ -138,6 +138,7 @@ val gunType = mutableIntStateOf(0)
 
 @Composable
 fun powerUps(cheeseCount: MutableState<Int> , count: MutableState<Int>) {
+    Log.d("immunity val" , immunity.value.toString())
     Column(
         modifier = Modifier,
         verticalArrangement = Arrangement.Bottom,
@@ -192,7 +193,6 @@ fun powerUps(cheeseCount: MutableState<Int> , count: MutableState<Int>) {
                 }
             }
             Spacer(modifier = Modifier.padding(horizontal = 5.dp))
-            val triggerImmunity = remember { mutableStateOf(false) }
             val showImmunity = remember { mutableStateOf(true) }
             if(showImmunity.value) {
                 Card(
@@ -207,17 +207,13 @@ fun powerUps(cheeseCount: MutableState<Int> , count: MutableState<Int>) {
                             painter = painterResource(id = R.drawable.immunity_icon),
                             contentDescription = "immunity",
                             modifier = Modifier.clickable {
-                                triggerImmunity.value = true
+                                immunity.value = true
                                 showImmunity.value = false
                             }
                         )
-                        LaunchedEffect(triggerImmunity.value) {
-                            if (triggerImmunity.value) {
-                                immunity.value = true
-                                delay(10000L)
-                                immunity.value = false
-                                triggerImmunity.value = false
-                            }
+                        LaunchedEffect(immunity.value) {
+                            delay(5000L)
+                            immunity.value = false
                         }
                     }
                 }
@@ -699,7 +695,6 @@ fun gamePageBase(navController: NavController) {
             }
         }
     }
-    //
     if(!shotFired.value && cheeseCount.value > 0) {
         Column(
             modifier = Modifier.padding(top = 0.dp , start = 35.dp),
