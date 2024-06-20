@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Tom_and_Jerry_game_task_2a" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
