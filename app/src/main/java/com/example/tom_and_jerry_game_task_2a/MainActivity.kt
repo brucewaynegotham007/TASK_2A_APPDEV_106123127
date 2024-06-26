@@ -421,33 +421,7 @@ fun playWinSound(context : Context) {
 
 @Composable
 fun playJumpingSound(context : Context , playJumpingSound : MutableState<Boolean>) {
-    val mediaPlayer = remember {
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_MEDIA)
-            .build()
-        MediaPlayer.create(context , R.raw.jumping_sound_trimmed).apply {
-            isLooping = false
-            setAudioAttributes(audioAttributes)
-            setOnPreparedListener {
-                start()
-            }
-            setOnErrorListener { _, _, _ ->
-                false
-            }
-        }
-    }
-    mediaPlayer.setVolume(1.0f,1.0f)
 
-    DisposableEffect(Unit) {
-        onDispose {
-            mediaPlayer.release()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        delay(2000L)
-        playJumpingSound.value = false
-    }
 }
 
 @Composable
@@ -459,16 +433,51 @@ fun gamePageBase(navController: NavController) {
         context = localContext
     )
 
-    if(!gameEnded.value) {
-        bgSound(context = localContext)
-    }
-
     if(playCollision.value) {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && playerWantsHapticFeedback.value){
             vibration(localContext)
         }
         if(playerWantsSound.value && !gameEnded.value){
             playCollisionSound(localContext)
+        }
+    }
+
+    val playJumpingSound = remember { mutableStateOf(false) }
+
+    val mediaPlayer = remember {
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .build()
+        MediaPlayer.create(localContext , R.raw.jumping_sound_trimmed).apply {
+            isLooping = false
+            setAudioAttributes(audioAttributes)
+            setOnPreparedListener {
+                //do nothing
+            }
+            setOnErrorListener { _, _, _ ->
+                false
+            }
+        }
+    }
+    mediaPlayer.setVolume(1.0f,1.0f)
+
+    LaunchedEffect(playJumpingSound.value) {
+        if(playJumpingSound.value) {
+            mediaPlayer?.start()
+        }
+        delay(1000L)
+        playJumpingSound.value = false
+    }
+
+    if(!gameEnded.value) {
+        bgSound(context = localContext)
+    }
+
+    if(gameEnded.value) {
+        DisposableEffect(Unit) {
+            onDispose {
+                mediaPlayer.release()
+            }
         }
     }
 
@@ -723,10 +732,6 @@ fun gamePageBase(navController: NavController) {
                 }
             }
         }
-    }
-    val playJumpingSound = remember { mutableStateOf(false) }
-    if(playJumpingSound.value && playerWantsSound.value) {
-        playJumpingSound(context = localContext , playJumpingSound = playJumpingSound)
     }
     Column(
         modifier = Modifier
@@ -1061,7 +1066,7 @@ fun result(navController: NavController , count: MutableState<Int> , cheeseCount
                         scoreOnlyMultiplier.value = 1f
                         obsOnlyMultiplier.value = 1f
                         obstacleList.clear()
-                        navController.navigate("firstPage")
+                        navController.navigate("gamePageBase")
                         firstBoxVal.value = "PLAYER 1"
                     },
                     colors = ButtonDefaults.buttonColors(
