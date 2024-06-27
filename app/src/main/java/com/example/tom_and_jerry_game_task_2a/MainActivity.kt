@@ -968,7 +968,7 @@ suspend fun checkCollisions(obs : Obstacle, cheeseCount: MutableState<Int>, coun
     else {
         //do nothing
     }
-    if(count.value>=2) {
+    if(count.value>= gameEnderVal.value) {
         gameEnded.value = true
     }
 }

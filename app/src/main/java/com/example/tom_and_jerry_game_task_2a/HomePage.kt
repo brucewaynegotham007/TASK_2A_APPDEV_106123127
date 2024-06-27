@@ -2,8 +2,10 @@ package com.example.tom_and_jerry_game_task_2a
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +28,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,8 +49,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
+import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.lang.Exception
 
 val leckerlioneFont = FontFamily(Font(R.font.leckerlione_regular))
+
+val gameEnderVal = mutableIntStateOf(2)
 
 val playerWantsSound = mutableStateOf(true)
 val playerWantsHapticFeedback = mutableStateOf(true)
@@ -53,6 +66,20 @@ val playerWantsHapticFeedback = mutableStateOf(true)
 val showSettings = mutableStateOf(false)
 
 val lightMode = mutableStateOf(true)
+
+@Composable
+fun ApiData() {
+    LaunchedEffect(Unit) {
+        try {
+            val responseForObstacleLimit = retrofitServiceForObstacleLimit.getObstacleLimit()
+            Log.d("obsLim" , responseForObstacleLimit.limit.toString())
+            gameEnderVal.value = responseForObstacleLimit.limit
+        }
+        catch (e: Exception) {
+            Log.d("obsLim" , "ERROR : ${e.message}")
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -267,12 +294,8 @@ fun settings() {
 }
 
 @Composable
-fun displayHighScores() {
-
-}
-
-@Composable
 fun firstPage(navController: NavController) {
+    ApiData()
     val context = LocalContext.current
     AndroidView(
         modifier = Modifier,
@@ -333,7 +356,9 @@ fun firstPage(navController: NavController) {
     }
     val sharedPreferences = context.getSharedPreferences("Cheese Chase" , Context.MODE_PRIVATE)
     Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 300.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 300.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
