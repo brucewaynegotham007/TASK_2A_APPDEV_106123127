@@ -2,11 +2,15 @@ package com.example.tom_and_jerry_game_task_2a
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,14 +34,18 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -49,12 +57,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
+import coil.request.ImageRequest
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.ResponseBody
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 import java.lang.Exception
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import kotlin.random.Random
 
 val leckerlioneFont = FontFamily(Font(R.font.leckerlione_regular))
 
@@ -67,12 +85,34 @@ val showSettings = mutableStateOf(false)
 
 val lightMode = mutableStateOf(true)
 
+val tomImageData = mutableStateOf<ByteArray?>(null)
+
+val randomWord = mutableStateOf("")
+
+//letters ain't getting displayed on screen .. fix it mate
+
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ApiData() {
+    val current = LocalDateTime.now()
+    val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+    val date = current.format(dateFormatter)
+    val time = current.format(timeFormatter)
     LaunchedEffect(Unit) {
         try {
             val responseForObstacleLimit = retrofitServiceForObstacleLimit.getObstacleLimit()
-            Log.d("obsLim" , responseForObstacleLimit.limit.toString())
+            val responseForTomImage = retrofitServiceForTomImage.getTomImage("tom")
+            val responseForRandomWord = retrofitServiceForRandomWord.getRandomWord(RandomWordRequest(length = 5))
+            val responseForTheme = retrofitServiceForTheme.getTheme(ThemeRequest(date = date , time = time))
+            responseForTheme.body()?.let {
+                lightMode.value = it.theme=="day"
+            }
+            responseForRandomWord.body()?.let {
+                randomWord.value = it.word
+            }
+            tomImageData.value = responseForTomImage.bytes()
+            Log.d("response" , tomImageData.value.toString())
             gameEnderVal.value = responseForObstacleLimit.limit
         }
         catch (e: Exception) {
@@ -293,10 +333,108 @@ fun settings() {
     }
 }
 
+data class LetterChar(
+    val letter: Char,
+    val lane : Int,
+    val yOffset : MutableState<Float>
+)
+
+fun checkLetterCollisions(
+    collisionCheckingYOffset: MutableState<Float>,
+    randomWordList: MutableList<LetterChar>,
+    letterChar: LetterChar
+) {
+    if(
+        letterChar.lane == currentPositionOfChar.value &&
+        letterChar.yOffset.value in collisionCheckingYOffset.value - 20 .. collisionCheckingYOffset.value + 20
+    ) {
+        randomWordList.remove(letterChar)
+    }
+}
+
+@Composable
+fun LetterOnScreen(letterChar: LetterChar , randomWordList: MutableList<LetterChar>) {
+    val collisionCheckingYOffset = remember { mutableFloatStateOf(1450f) }
+    var xOffset = 0f
+    val letterBitmap = when(letterChar.letter) {
+        'a' -> ImageBitmap.imageResource(id = R.drawable.a)
+        'b' -> ImageBitmap.imageResource(id = R.drawable.b)
+        'c' -> ImageBitmap.imageResource(id = R.drawable.c)
+        'd' -> ImageBitmap.imageResource(id = R.drawable.d)
+        'e' -> ImageBitmap.imageResource(id = R.drawable.e)
+        'f' -> ImageBitmap.imageResource(id = R.drawable.f)
+        'g' -> ImageBitmap.imageResource(id = R.drawable.g)
+        'h' -> ImageBitmap.imageResource(id = R.drawable.h)
+        'i' -> ImageBitmap.imageResource(id = R.drawable.i)
+        'j' -> ImageBitmap.imageResource(id = R.drawable.j)
+        'k' -> ImageBitmap.imageResource(id = R.drawable.k)
+        'l' -> ImageBitmap.imageResource(id = R.drawable.l)
+        'm' -> ImageBitmap.imageResource(id = R.drawable.m)
+        'n' -> ImageBitmap.imageResource(id = R.drawable.n)
+        'o' -> ImageBitmap.imageResource(id = R.drawable.o)
+        'p' -> ImageBitmap.imageResource(id = R.drawable.p)
+        'q' -> ImageBitmap.imageResource(id = R.drawable.q)
+        'r' -> ImageBitmap.imageResource(id = R.drawable.r)
+        's' -> ImageBitmap.imageResource(id = R.drawable.s)
+        't' -> ImageBitmap.imageResource(id = R.drawable.t)
+        'u' -> ImageBitmap.imageResource(id = R.drawable.u)
+        'v' -> ImageBitmap.imageResource(id = R.drawable.v)
+        'w' -> ImageBitmap.imageResource(id = R.drawable.w)
+        'x' -> ImageBitmap.imageResource(id = R.drawable.x)
+        'y' -> ImageBitmap.imageResource(id = R.drawable.y)
+        else -> ImageBitmap.imageResource(id = R.drawable.z)
+    }
+    LaunchedEffect(Unit) {
+        delay(10L)
+        letterChar.yOffset.value += 5
+        checkLetterCollisions(collisionCheckingYOffset,randomWordList,letterChar)
+    }
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color.Transparent)
+    ) {
+        collisionCheckingYOffset.value = size.height/2 - 50f
+        when (letterChar.lane) {
+            1 -> xOffset = size.width/6 - 50f
+            2 -> xOffset = size.width/2 - 85f
+            3 -> xOffset = 4*size.width/5 - 100f
+            else -> xOffset = 0f
+        }
+        drawImage(
+            image = letterBitmap,
+            topLeft = Offset(xOffset, letterChar.yOffset.value)
+        )
+    }
+}
+
+@Composable
+fun WordHandling(randomWordList: MutableList<LetterChar>) {
+    val timeFactor = remember { mutableIntStateOf(0) }
+    val displayOnScreen = remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(1000L)
+        timeFactor.value++
+    }
+    LaunchedEffect(timeFactor.value) {
+        if(timeFactor.value%10==0 && timeFactor.value!=0) {
+            if(randomWordList.isNotEmpty()) {
+                displayOnScreen.value = true
+                delay(4000L)
+                displayOnScreen.value = false
+            }
+        }
+    }
+    if(displayOnScreen.value) {
+        LetterOnScreen(randomWordList.first() , randomWordList)
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun firstPage(navController: NavController) {
-    ApiData()
     val context = LocalContext.current
+    ApiData()
     AndroidView(
         modifier = Modifier,
         factory = { context ->
@@ -389,6 +527,37 @@ fun firstPage(navController: NavController) {
                 )
             }
         }
+    }
+    Column(
+        modifier = Modifier.padding(top = 720.dp , start = 300.dp)
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.twotone_help_24),
+            contentDescription = "rules page",
+            modifier = Modifier
+                .scale(2.5f)
+                .clickable {
+                    navController.navigate("rulesPage")
+                }
+        )
+    }
+}
+
+@Composable
+fun rulesPage() {
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        val imageRequest = ImageRequest.Builder(LocalContext.current)
+            .data(tomImageData.value)
+            .build()
+        val imagePainter = rememberAsyncImagePainter(imageRequest)
+        Image(
+            painter = imagePainter,
+            contentDescription = "Tom Image from API",
+            modifier = Modifier.fillMaxSize()
+        )
+        Log.d("tom image" , "I am here")
     }
 }
 

@@ -92,6 +92,7 @@ import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -107,6 +108,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun myApp() {
     val navController = rememberNavController()
@@ -116,6 +118,9 @@ fun myApp() {
         }
         composable("homePage") {
             firstPage(navController)
+        }
+        composable("rulesPage") {
+            rulesPage()
         }
     }
 }
@@ -429,6 +434,21 @@ fun gamePageBase(navController: NavController) {
 
     var localContext = LocalContext.current
 
+    if(randomWord.value.isNotEmpty()) {
+        val separateChars = remember { mutableStateOf(randomWord.value.toList()) }
+        val yOffsetSetter = remember { mutableFloatStateOf(0f) }
+        val separateLetterChars : MutableList<LetterChar> = mutableListOf()
+        for(i in separateChars.value) {
+            val lane = Random.nextInt(1,4)
+            separateLetterChars.add(LetterChar(i, lane , yOffsetSetter))
+        }
+        Column(
+            modifier = Modifier.animateContentSize()
+        ) {
+            WordHandling(randomWordList = separateLetterChars)
+        }
+    }
+
     gyroscopeSetup(
         context = localContext
     )
@@ -563,7 +583,10 @@ fun gamePageBase(navController: NavController) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        val jerryBitmap = ImageBitmap.imageResource(id = R.drawable.jerry_alternate)
+        val jerryBitmap = when(howManyDodges.value) {
+            0 -> ImageBitmap.imageResource(id = R.drawable.jerry_alternate)
+            else -> ImageBitmap.imageResource(id = R.drawable.jerry_invisibile_to_obstacles)
+        }
         val tomBitmap = ImageBitmap.imageResource(id = R.drawable.tom_alternate)
         val gunBitmap = when(gunType.value) {
             0 -> ImageBitmap.imageResource(id = R.drawable.gun_no_bg)
@@ -779,24 +802,30 @@ fun gamePageBase(navController: NavController) {
         Card(
             modifier = Modifier.size(120.dp,50.dp),
         ) {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if(count.value<2) {
-                    Image(
-                        painter = painterResource(id = R.drawable.heart),
-                        contentDescription = "life1",
-                        modifier = Modifier.scale(0.7f)
-                    )
-                }
-                if(count.value<1) {
-                    Image(
-                        painter = painterResource(id = R.drawable.heart),
-                        contentDescription = "life2",
-                        modifier = Modifier.scale(0.7f)
-                    )
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    for (i in 1..gameEnderVal.value) {
+                        if (gameEnderVal.value >= count.value + i) {
+                            Column(
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.heart),
+                                    contentDescription = "life1",
+                                    modifier = Modifier.size((50-5*(gameEnderVal.value)).dp,(50-5*(gameEnderVal.value)).dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -906,13 +935,30 @@ fun gamePageObstacles(navController: NavController, cheeseCount : MutableState<I
 
         LaunchedEffect(timeFactor.value) {
             if(timeFactor.value%2 == 0) {
-                val lane = Random.nextInt(1,4)
-                val type = Random.nextInt(0,4)
-                obstacleList.add(Obstacle(typesOfObstacles[type],lane , mutableFloatStateOf(0f) , mutableStateOf(true)))
-            }
-            if(timeFactor.value%11 == 0 && timeFactor.value != 0) {
-                val lane = Random.nextInt(1,4)
-                obstacleList.add(Obstacle("Gift",lane , mutableFloatStateOf(0f) , mutableStateOf(true)))
+                val responseForObstacleCourse = retrofitServiceForObstacleCourse.getObstacleCourse(
+                    ObstacleCourseRequest(extent = 1)
+                )
+                responseForObstacleCourse.body()?.let {
+                    val type = Random.nextInt(0,4)
+                    when(it.obstacleCourse[0]) {
+                        "L" -> {
+                            val lane = 1
+                            obstacleList.add(Obstacle(typesOfObstacles[type],lane , mutableFloatStateOf(0f) , mutableStateOf(true)))
+                        }
+                        "M" -> {
+                            val lane = 2
+                            obstacleList.add(Obstacle(typesOfObstacles[type],lane , mutableFloatStateOf(0f) , mutableStateOf(true)))
+                        }
+                        "R" -> {
+                            val lane = 3
+                            obstacleList.add(Obstacle(typesOfObstacles[type],lane , mutableFloatStateOf(0f) , mutableStateOf(true)))
+                        }
+                        else -> {
+                            val lane = Random.nextInt(1,4)
+                            obstacleList.add(Obstacle("Gift",lane , mutableFloatStateOf(0f) , mutableStateOf(true)))
+                        }
+                    }
+                }
             }
             if(!gameEnded.value){
                 delay(((100 * obsOnlyMultiplier.value) / (multiplier.value * scoreOnlyMultiplier.value)).toLong())
@@ -933,33 +979,43 @@ fun gamePageObstacles(navController: NavController, cheeseCount : MutableState<I
 val obstacleList = mutableListOf<Obstacle>()
 val typesOfObstacles = listOf<String>("Lake","Lion","tree","Cheese")
 val playCollision = mutableStateOf(false)
+val howManyDodges = mutableIntStateOf(0)
 
 suspend fun checkCollisions(obs : Obstacle, cheeseCount: MutableState<Int>, count: MutableState<Int> , collisionCheckingYOffset : MutableState<Float>) {
     if(obs.lane == currentPositionOfChar.value && obs.yOffset.value in collisionCheckingYOffset.value-20f..collisionCheckingYOffset.value+20f) {
-        obstacleList.remove(obs)
         if(immunity.value) {
+            obstacleList.remove(obs)
             //do nothing
         }
+        else if(howManyDodges.value>0) {
+            howManyDodges.value--
+        }
         else if(obs.type == "Gift") {
-            var a = Random.nextInt(0,2)
-            //reward = multiplier only for score for some time
-            if(a==1) {
-                scoreOnlyMultiplier.value = 2f
-                delay(5000L)
-                scoreOnlyMultiplier.value = 1f
-            }
-            //punishment = multiplier only for obstacles for some time
-            else {
-                obsOnlyMultiplier.value = 2f
-                delay(5000L)
-                obsOnlyMultiplier.value = 1f
+            obstacleList.remove(obs)
+            val responseForHitHindrance = retrofitServiceForHitHindrance.getHitHindrance()
+            when(responseForHitHindrance.type) {
+                1 -> {
+                    scoreOnlyMultiplier.value = responseForHitHindrance.amount.toFloat()
+                    obsOnlyMultiplier.value = responseForHitHindrance.amount.toFloat()
+                    delay(5000L)
+                    scoreOnlyMultiplier.value = 1f
+                    obsOnlyMultiplier.value = 1f
+                }
+                2 -> {
+                    howManyDodges.value = responseForHitHindrance.amount
+                }
+                3 -> {
+                    //bring tom closer by a certain amount
+                }
             }
         }
         else if(obs.type == "Cheese") {
+            obstacleList.remove(obs)
             cheeseCount.value++
 //            Log.d("cheeseCount" , cheeseCount.value.toString())
         }
         else {
+            obstacleList.remove(obs)
             count.value++
             playCollision.value = true
             Log.d("count" , count.value.toString())
