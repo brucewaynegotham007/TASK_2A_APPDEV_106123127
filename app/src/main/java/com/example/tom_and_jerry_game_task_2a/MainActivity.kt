@@ -434,21 +434,6 @@ fun gamePageBase(navController: NavController) {
 
     var localContext = LocalContext.current
 
-    if(randomWord.value.isNotEmpty()) {
-        val separateChars = remember { mutableStateOf(randomWord.value.toList()) }
-        val yOffsetSetter = remember { mutableFloatStateOf(0f) }
-        val separateLetterChars : MutableList<LetterChar> = mutableListOf()
-        for(i in separateChars.value) {
-            val lane = Random.nextInt(1,4)
-            separateLetterChars.add(LetterChar(i, lane , yOffsetSetter))
-        }
-        Column(
-            modifier = Modifier.animateContentSize()
-        ) {
-            WordHandling(randomWordList = separateLetterChars)
-        }
-    }
-
     gyroscopeSetup(
         context = localContext
     )
@@ -596,7 +581,7 @@ fun gamePageBase(navController: NavController) {
         }
         val immunityBitmap = ImageBitmap.imageResource(id = R.drawable.immunity_ring)
         Canvas(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().background(Color.Transparent)
         ) {
             when(currentPositionOfChar.value) {
                 1-> {
@@ -901,6 +886,11 @@ fun gamePageBase(navController: NavController) {
                 }
             }
         }
+    }
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        WordHandling()
     }
 }
 

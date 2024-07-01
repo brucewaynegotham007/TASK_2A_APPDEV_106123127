@@ -6,7 +6,6 @@ import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -24,20 +23,19 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -47,28 +45,17 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import coil.compose.rememberImagePainter
 import coil.request.ImageRequest
-import com.google.gson.Gson
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.ResponseBody
-import java.io.ByteArrayInputStream
-import java.io.InputStream
 import java.lang.Exception
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -103,13 +90,9 @@ fun ApiData() {
         try {
             val responseForObstacleLimit = retrofitServiceForObstacleLimit.getObstacleLimit()
             val responseForTomImage = retrofitServiceForTomImage.getTomImage("tom")
-            val responseForRandomWord = retrofitServiceForRandomWord.getRandomWord(RandomWordRequest(length = 5))
             val responseForTheme = retrofitServiceForTheme.getTheme(ThemeRequest(date = date , time = time))
             responseForTheme.body()?.let {
                 lightMode.value = it.theme=="day"
-            }
-            responseForRandomWord.body()?.let {
-                randomWord.value = it.word
             }
             tomImageData.value = responseForTomImage.bytes()
             Log.d("response" , tomImageData.value.toString())
@@ -117,6 +100,19 @@ fun ApiData() {
         }
         catch (e: Exception) {
             Log.d("obsLim" , "ERROR : ${e.message}")
+        }
+    }
+    LaunchedEffect(Unit) {
+        val lengthOfRandomWord = Random.nextInt(4,8)
+        val responseForRandomWord = retrofitServiceForRandomWord.getRandomWord(RandomWordRequest(length = lengthOfRandomWord))
+        try {
+            responseForRandomWord.body()?.let {
+                randomWord.value = it.word
+                Log.d("randomWord" , randomWord.value)
+            }
+        }
+        catch(e : Exception) {
+            Log.d("App might crash" , "Sorry")
         }
     }
 }
@@ -341,92 +337,125 @@ data class LetterChar(
 
 fun checkLetterCollisions(
     collisionCheckingYOffset: MutableState<Float>,
-    randomWordList: MutableList<LetterChar>,
-    letterChar: LetterChar
+    randomWordList: SnapshotStateList<LetterChar>
 ) {
     if(
-        letterChar.lane == currentPositionOfChar.value &&
-        letterChar.yOffset.value in collisionCheckingYOffset.value - 20 .. collisionCheckingYOffset.value + 20
+        randomWordList.isNotEmpty() &&
+        randomWordList.first().lane == currentPositionOfChar.value &&
+        randomWordList.first().yOffset.value in collisionCheckingYOffset.value - 50f .. collisionCheckingYOffset.value + 50f
     ) {
-        randomWordList.remove(letterChar)
+        randomWordList.remove(randomWordList.first())
+        randomWord.value = randomWord.value.drop(1)
+        Log.d("randomWordChanged?" , randomWord.value)
+    }
+    else if(
+        randomWordList.isNotEmpty() &&
+        randomWordList.first().yOffset.value >= collisionCheckingYOffset.value*2
+    ) {
+        randomWordList.remove(randomWordList.first())
+        randomWord.value = randomWord.value.drop(0)
+        Log.d("randomWordChanged?" , randomWord.value)
+    }
+    else {
+        //do nothing
     }
 }
 
 @Composable
-fun LetterOnScreen(letterChar: LetterChar , randomWordList: MutableList<LetterChar>) {
-    val collisionCheckingYOffset = remember { mutableFloatStateOf(1450f) }
-    var xOffset = 0f
-    val letterBitmap = when(letterChar.letter) {
-        'a' -> ImageBitmap.imageResource(id = R.drawable.a)
-        'b' -> ImageBitmap.imageResource(id = R.drawable.b)
-        'c' -> ImageBitmap.imageResource(id = R.drawable.c)
-        'd' -> ImageBitmap.imageResource(id = R.drawable.d)
-        'e' -> ImageBitmap.imageResource(id = R.drawable.e)
-        'f' -> ImageBitmap.imageResource(id = R.drawable.f)
-        'g' -> ImageBitmap.imageResource(id = R.drawable.g)
-        'h' -> ImageBitmap.imageResource(id = R.drawable.h)
-        'i' -> ImageBitmap.imageResource(id = R.drawable.i)
-        'j' -> ImageBitmap.imageResource(id = R.drawable.j)
-        'k' -> ImageBitmap.imageResource(id = R.drawable.k)
-        'l' -> ImageBitmap.imageResource(id = R.drawable.l)
-        'm' -> ImageBitmap.imageResource(id = R.drawable.m)
-        'n' -> ImageBitmap.imageResource(id = R.drawable.n)
-        'o' -> ImageBitmap.imageResource(id = R.drawable.o)
-        'p' -> ImageBitmap.imageResource(id = R.drawable.p)
-        'q' -> ImageBitmap.imageResource(id = R.drawable.q)
-        'r' -> ImageBitmap.imageResource(id = R.drawable.r)
-        's' -> ImageBitmap.imageResource(id = R.drawable.s)
-        't' -> ImageBitmap.imageResource(id = R.drawable.t)
-        'u' -> ImageBitmap.imageResource(id = R.drawable.u)
-        'v' -> ImageBitmap.imageResource(id = R.drawable.v)
-        'w' -> ImageBitmap.imageResource(id = R.drawable.w)
-        'x' -> ImageBitmap.imageResource(id = R.drawable.x)
-        'y' -> ImageBitmap.imageResource(id = R.drawable.y)
-        else -> ImageBitmap.imageResource(id = R.drawable.z)
-    }
-    LaunchedEffect(Unit) {
-        delay(10L)
-        letterChar.yOffset.value += 5
-        checkLetterCollisions(collisionCheckingYOffset,randomWordList,letterChar)
-    }
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color = Color.Transparent)
-    ) {
-        collisionCheckingYOffset.value = size.height/2 - 50f
-        when (letterChar.lane) {
-            1 -> xOffset = size.width/6 - 50f
-            2 -> xOffset = size.width/2 - 85f
-            3 -> xOffset = 4*size.width/5 - 100f
-            else -> xOffset = 0f
+fun LetterOnScreen(randomWordList: SnapshotStateList<LetterChar>) {
+    if(randomWordList.isNotEmpty()) {
+        val collisionCheckingYOffset = remember { mutableFloatStateOf(1450f) }
+        var xOffset = 0f
+        val letterBitmap = when (randomWordList.first().letter) {
+            'a' -> ImageBitmap.imageResource(id = R.drawable.a)
+            'b' -> ImageBitmap.imageResource(id = R.drawable.b)
+            'c' -> ImageBitmap.imageResource(id = R.drawable.c)
+            'd' -> ImageBitmap.imageResource(id = R.drawable.d)
+            'e' -> ImageBitmap.imageResource(id = R.drawable.e)
+            'f' -> ImageBitmap.imageResource(id = R.drawable.f)
+            'g' -> ImageBitmap.imageResource(id = R.drawable.g)
+            'h' -> ImageBitmap.imageResource(id = R.drawable.h)
+            'i' -> ImageBitmap.imageResource(id = R.drawable.i)
+            'j' -> ImageBitmap.imageResource(id = R.drawable.j)
+            'k' -> ImageBitmap.imageResource(id = R.drawable.k)
+            'l' -> ImageBitmap.imageResource(id = R.drawable.l)
+            'm' -> ImageBitmap.imageResource(id = R.drawable.m)
+            'n' -> ImageBitmap.imageResource(id = R.drawable.n)
+            'o' -> ImageBitmap.imageResource(id = R.drawable.o)
+            'p' -> ImageBitmap.imageResource(id = R.drawable.p)
+            'q' -> ImageBitmap.imageResource(id = R.drawable.q)
+            'r' -> ImageBitmap.imageResource(id = R.drawable.r)
+            's' -> ImageBitmap.imageResource(id = R.drawable.s)
+            't' -> ImageBitmap.imageResource(id = R.drawable.t)
+            'u' -> ImageBitmap.imageResource(id = R.drawable.u)
+            'v' -> ImageBitmap.imageResource(id = R.drawable.v)
+            'w' -> ImageBitmap.imageResource(id = R.drawable.w)
+            'x' -> ImageBitmap.imageResource(id = R.drawable.x)
+            'y' -> ImageBitmap.imageResource(id = R.drawable.y)
+            'z' -> ImageBitmap.imageResource(id = R.drawable.z)
+            else -> ImageBitmap.imageResource(id = R.drawable.ak_remove_bg)
         }
-        drawImage(
-            image = letterBitmap,
-            topLeft = Offset(xOffset, letterChar.yOffset.value)
-        )
-    }
-}
-
-@Composable
-fun WordHandling(randomWordList: MutableList<LetterChar>) {
-    val timeFactor = remember { mutableIntStateOf(0) }
-    val displayOnScreen = remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(1000L)
-        timeFactor.value++
-    }
-    LaunchedEffect(timeFactor.value) {
-        if(timeFactor.value%10==0 && timeFactor.value!=0) {
-            if(randomWordList.isNotEmpty()) {
-                displayOnScreen.value = true
-                delay(4000L)
-                displayOnScreen.value = false
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(10L)
+                if(randomWordList.isNotEmpty()) {
+                    randomWordList.first().yOffset.value += 5
+                }
+                checkLetterCollisions(collisionCheckingYOffset, randomWordList)
+            }
+        }
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(color = Color.Transparent)
+            ) {
+                collisionCheckingYOffset.value = size.height / 2
+                when (randomWordList.first().lane) {
+                    1 -> xOffset = size.width / 6 - 80f
+                    2 -> xOffset = size.width / 2 - 120f
+                    3 -> xOffset = 4 * size.width / 5 - 150f
+                    else -> xOffset = 0f
+                }
+                drawImage(
+                    image = letterBitmap,
+                    topLeft = Offset(xOffset, randomWordList.first().yOffset.value)
+                )
             }
         }
     }
-    if(displayOnScreen.value) {
-        LetterOnScreen(randomWordList.first() , randomWordList)
+}
+
+@Composable
+fun WordHandling() {
+    val yOffsetSetter = remember { mutableFloatStateOf(0f) }
+    val randomWordList = remember { mutableStateListOf<LetterChar>() }
+    val timeFactor = remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            delay(10000L)
+            timeFactor.value += 10
+        }
+    }
+    LaunchedEffect(timeFactor.value){
+        if (randomWord.value.isNotEmpty()) {
+            val separateChars = randomWord.value.toList()
+            val lane = Random.nextInt(1, 4)
+            val letter = separateChars.first()
+            yOffsetSetter.value = 0f
+            val newLetterChar = LetterChar(letter, lane, yOffsetSetter)
+            randomWordList.add(newLetterChar)
+        }
+    }
+    if(randomWordList.isNotEmpty()){
+        Log.d("randomWordListOutside" , randomWordList.toString())
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            LetterOnScreen(randomWordList)
+        }
     }
 }
 
