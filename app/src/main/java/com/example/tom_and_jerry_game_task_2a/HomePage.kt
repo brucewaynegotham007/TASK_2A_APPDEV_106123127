@@ -2,6 +2,7 @@ package com.example.tom_and_jerry_game_task_2a
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
@@ -10,6 +11,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,11 +32,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +46,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
@@ -71,9 +76,6 @@ val playerWantsHapticFeedback = mutableStateOf(true)
 val showSettings = mutableStateOf(false)
 
 val lightMode = mutableStateOf(true)
-
-val tomImageData = mutableStateOf<ByteArray?>(null)
-
 val randomWord = mutableStateOf("")
 
 //letters ain't getting displayed on screen .. fix it mate
@@ -89,13 +91,10 @@ fun ApiData() {
     LaunchedEffect(Unit) {
         try {
             val responseForObstacleLimit = retrofitServiceForObstacleLimit.getObstacleLimit()
-            val responseForTomImage = retrofitServiceForTomImage.getTomImage("tom")
             val responseForTheme = retrofitServiceForTheme.getTheme(ThemeRequest(date = date , time = time))
             responseForTheme.body()?.let {
                 lightMode.value = it.theme=="day"
             }
-            tomImageData.value = responseForTomImage.bytes()
-            Log.d("response" , tomImageData.value.toString())
             gameEnderVal.value = responseForObstacleLimit.limit
         }
         catch (e: Exception) {
@@ -577,16 +576,117 @@ fun rulesPage() {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        val imageRequest = ImageRequest.Builder(LocalContext.current)
-            .data(tomImageData.value)
-            .build()
-        val imagePainter = rememberAsyncImagePainter(imageRequest)
-        Image(
-            painter = imagePainter,
-            contentDescription = "Tom Image from API",
-            modifier = Modifier.fillMaxSize()
-        )
-        Log.d("tom image" , "I am here")
+        TomImage()
+        JerryImage()
+        ObstacleImage()
+    }
+}
+
+@Composable
+fun TomImage() {
+    var tomImageData by remember { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(Unit) {
+        try {
+            val responseForTomImage = retrofitServiceForTomImage.getTomImage("tom")
+            tomImageData = responseForTomImage.bytes()
+        } catch (e: Exception) {
+            Log.d("tomImage", "ERROR: ${e.message}")
+        }
+    }
+    Column(
+        modifier = Modifier.size(446.4.dp , 276.8.dp)
+    ) {
+        tomImageData?.let {imageData ->
+            val bitmap = remember(imageData) {
+                BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+            }
+            bitmap?.let {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "Tom Image from API",
+                    modifier = Modifier
+                        .size(558.dp, 346.dp)
+                        .scale(0.8f)
+                )
+                Log.d("Tom Image" , "Image loaded")
+            } ?: run {
+                Log.d("Tom Image" , "Failed to decode bitmap")
+            }
+        } ?: run {
+            Text(text = "Image Loading ... ")
+        }
+    }
+}
+
+@Composable
+fun JerryImage() {
+    var jerryImageData by remember { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(Unit) {
+        try {
+            val responseForJerryImage = retrofitServiceForJerryImage.getJerryImage("jerry")
+            jerryImageData = responseForJerryImage.bytes()
+        } catch (e: Exception) {
+            Log.d("tomImage", "ERROR: ${e.message}")
+        }
+    }
+    Column(
+        modifier = Modifier.size(400.dp)
+    ) {
+        jerryImageData?.let {imageData ->
+            val bitmap = remember(imageData) {
+                BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+            }
+            bitmap?.let {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "Jerry Image from API",
+                    modifier = Modifier
+                        .size(357.6.dp, 291.2.dp)
+                        .scale(0.8f)
+                )
+                Log.d("Jerry Image" , "Image loaded")
+            } ?: run {
+                Log.d("Jerry Image" , "Failed to decode bitmap")
+            }
+        } ?: run {
+            Text(text = "Image Loading ... ")
+        }
+    }
+}
+
+@Composable
+fun ObstacleImage() {
+    var obstacleImageData by remember { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(Unit) {
+        try {
+            val responseForObstacleImage = retrofitServiceForObstacleImage.getObstacleImage("obstacle")
+            obstacleImageData = responseForObstacleImage.bytes()
+        } catch (e: Exception) {
+            Log.d("tomImage", "ERROR: ${e.message}")
+        }
+    }
+    Column(
+        modifier = Modifier.size(300.dp , 300.dp)
+    ) {
+        obstacleImageData?.let {imageData ->
+            val bitmap = remember(imageData) {
+                BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+            }
+            bitmap?.let {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "Tom Image from API",
+                    modifier = Modifier
+                        .size(300.dp, 300.dp)
+                        .scale(0.8f)
+                )
+                Log.d("Obstacle Image" , "Image loaded")
+            } ?: run {
+                Log.d("Obstacle Image" , "Failed to decode bitmap")
+            }
+        } ?: run {
+            Text(text = "Image Loading ... ")
+        }
     }
 }
 

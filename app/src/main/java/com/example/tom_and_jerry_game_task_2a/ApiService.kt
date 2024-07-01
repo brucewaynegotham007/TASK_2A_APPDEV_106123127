@@ -19,6 +19,8 @@ private val retrofit = Retrofit.Builder()
 
 val retrofitServiceForObstacleLimit: ApiServiceForObstacleLimit = retrofit.create(ApiServiceForObstacleLimit::class.java)
 val retrofitServiceForTomImage: ApiServiceForImageOfTom = retrofit.create(ApiServiceForImageOfTom::class.java)
+val retrofitServiceForJerryImage : ApiServiceForJerryImage = retrofit.create(ApiServiceForJerryImage::class.java)
+val retrofitServiceForObstacleImage : ApiServiceForObstacleImage = retrofit.create(ApiServiceForObstacleImage::class.java)
 val retrofitServiceForHitHindrance: ApiServiceForhitHindrance = retrofit.create(ApiServiceForhitHindrance::class.java)
 val retrofitServiceForRandomWord: ApiServiceForRandomWord = retrofit.create(ApiServiceForRandomWord::class.java)
 val retrofitServiceForTheme : ApiServiceForTheme = retrofit.create(ApiServiceForTheme::class.java)
@@ -67,6 +69,20 @@ interface ApiServiceForObstacleLimit {
 interface ApiServiceForImageOfTom {
     @GET("/image")
     suspend fun getTomImage(
+        @Query("character") character : String
+    ) : ResponseBody
+}
+
+interface ApiServiceForJerryImage {
+    @GET("/image")
+    suspend fun getJerryImage(
+        @Query("character") character: String
+    ) : ResponseBody
+}
+
+interface ApiServiceForObstacleImage {
+    @GET("/image")
+    suspend fun getObstacleImage(
         @Query("character") character : String
     ) : ResponseBody
 }
