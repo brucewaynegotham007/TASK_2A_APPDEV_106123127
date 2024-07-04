@@ -2,6 +2,7 @@ package com.example.tom_and_jerry_game_task_2a
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.BitmapFactory
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -16,6 +17,7 @@ import android.os.VibratorManager
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
@@ -41,6 +43,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -69,8 +72,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
@@ -89,6 +94,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.lang.Exception
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
@@ -141,6 +147,7 @@ val immunity = mutableStateOf(false)
 val scoreOnlyMultiplier = mutableFloatStateOf(1f)
 val obsOnlyMultiplier = mutableFloatStateOf(1f)
 val gunType = mutableIntStateOf(0)
+val wordChanged = mutableStateOf(false)
 
 @Composable
 fun powerUps(cheeseCount: MutableState<Int> , count: MutableState<Int>) {
@@ -231,7 +238,18 @@ fun powerUps(cheeseCount: MutableState<Int> , count: MutableState<Int>) {
 }
 
 @Composable
-fun checkingPage(obs: Obstacle, cheeseCount: MutableState<Int>, count: MutableState<Int>) {
+fun checkingPage(obs: Obstacle, cheeseCount: MutableState<Int>, count: MutableState<Int> , obstacleImageData : ByteArray?) {
+
+    var givenObstacleImage : ImageBitmap = ImageBitmap.imageResource(id = R.drawable.extra_life_icon)
+
+    obstacleImageData?.let { imageData ->
+        val bitmap = remember(imageData) {
+            BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+        }
+        bitmap?.let {
+            givenObstacleImage = bitmap.asImageBitmap()
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -242,7 +260,6 @@ fun checkingPage(obs: Obstacle, cheeseCount: MutableState<Int>, count: MutableSt
         val treeBitmap = ImageBitmap.imageResource(id = R.drawable.tree_obstacle)
         val lakeBitmap = ImageBitmap.imageResource(id = R.drawable.lake_obstacle)
         val giftBitmap = ImageBitmap.imageResource(id = R.drawable.punishment_or_reward)
-        val noImage = ImageBitmap.imageResource(id = R.drawable.alternate_tracks)
 
         val imgBitmap = when (obs.type) {
             "Lake" -> lakeBitmap
@@ -250,7 +267,7 @@ fun checkingPage(obs: Obstacle, cheeseCount: MutableState<Int>, count: MutableSt
             "tree" -> treeBitmap
             "Cheese" -> cheeseBitmap
             "Gift" -> giftBitmap
-            else -> noImage
+            else -> givenObstacleImage
         }
 
         var xOffset = 0f
@@ -281,13 +298,29 @@ fun checkingPage(obs: Obstacle, cheeseCount: MutableState<Int>, count: MutableSt
                 modifier = Modifier
                     .fillMaxSize()
                     .background(color = Color.Transparent)
+                    .graphicsLayer {
+                        if (obs.type == "GivenObstacle") {
+                            scaleX = 0.5f
+                            scaleY = 0.5f
+                        }
+                    }
             ) {
                 collisionCheckingYOffset.value = size.height/2 - 50f
-                when (obs.lane) {
-                    1 -> xOffset = size.width/6 - 50f
-                    2 -> xOffset = size.width/2 - 85f
-                    3 -> xOffset = 4*size.width/5 - 100f
-                    else -> xOffset = 0f
+                if(obs.type=="GivenObstacle") {
+                    when (obs.lane) {
+                        1 -> xOffset = size.width/6 - 50f
+                        2 -> xOffset = size.width/2 - 125f
+                        3 -> xOffset = 4*size.width/5
+                        else -> xOffset = 0f
+                    }
+                }
+                else {
+                    when (obs.lane) {
+                        1 -> xOffset = size.width/6 - 50f
+                        2 -> xOffset = size.width/2 - 85f
+                        3 -> xOffset = 4*size.width/5 - 100f
+                        else -> xOffset = 0f
+                    }
                 }
                 drawImage(
                     image = imgBitmap,
@@ -399,6 +432,32 @@ fun playCollisionSound(context : Context) {
 }
 
 @Composable
+fun playCollectingLetterSound(context: Context) {
+    val mediaPlayer = remember {
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .build()
+        MediaPlayer.create(context , R.raw.treasure_sound).apply {
+            isLooping = false
+            setAudioAttributes(audioAttributes)
+            setOnPreparedListener {
+                start()
+            }
+            setOnErrorListener { _, _, _ ->
+                false
+            }
+        }
+    }
+    mediaPlayer.setVolume(1.0f,1.0f)
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer.release()
+        }
+    }
+}
+
+@Composable
 fun playWinSound(context : Context) {
     val mediaPlayer = remember {
         val audioAttributes = AudioAttributes.Builder()
@@ -425,12 +484,17 @@ fun playWinSound(context : Context) {
 }
 
 @Composable
-fun playJumpingSound(context : Context , playJumpingSound : MutableState<Boolean>) {
-
-}
-
-@Composable
 fun gamePageBase(navController: NavController) {
+
+    var obstacleImageData by remember { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(Unit) {
+        try {
+            val responseForObstacleImage = retrofitServiceForObstacleImage.getObstacleImage("obstacle")
+            obstacleImageData = responseForObstacleImage.bytes()
+        } catch (e: Exception) {
+            Log.d("tomImage", "ERROR: ${e.message}")
+        }
+    }
 
     var localContext = LocalContext.current
 
@@ -509,7 +573,7 @@ fun gamePageBase(navController: NavController) {
     Column(
         modifier = Modifier.animateContentSize()
     ) {
-        gamePageObstacles(navController,cheeseCount, count)
+        gamePageObstacles(navController,cheeseCount, count , obstacleImageData)
     }
     val xOffsetJerryCanvas by animateFloatAsState(
         targetValue = xOffsetForJerryCanvas.value,
@@ -550,7 +614,7 @@ fun gamePageBase(navController: NavController) {
     LaunchedEffect(Unit) {
         launch {
             jumpHeight.animateTo(
-                targetValue = -10f,
+                targetValue = -100f,
                 animationSpec = infiniteRepeatable(
                     animation = tween(durationMillis = 150, easing = LinearEasing),
                     repeatMode = RepeatMode.Reverse
@@ -565,14 +629,48 @@ fun gamePageBase(navController: NavController) {
             )
         }
     }
+    var tomImageData by remember { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(Unit) {
+        try {
+            val responseForTomImage = retrofitServiceForTomImage.getTomImage("tom")
+            tomImageData = responseForTomImage.bytes()
+        } catch (e: Exception) {
+            Log.d("tomImage", "ERROR: ${e.message}")
+        }
+    }
+    var jerryImageData by remember { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(Unit) {
+        try {
+            val responseForJerryImage = retrofitServiceForJerryImage.getJerryImage("jerry")
+            jerryImageData = responseForJerryImage.bytes()
+        } catch (e: Exception) {
+            Log.d("tomImage", "ERROR: ${e.message}")
+        }
+    }
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        val jerryBitmap = when(howManyDodges.value) {
+        var jerryBitmap = when(howManyDodges.value) {
             0 -> ImageBitmap.imageResource(id = R.drawable.jerry_alternate)
             else -> ImageBitmap.imageResource(id = R.drawable.jerry_invisibile_to_obstacles)
         }
-        val tomBitmap = ImageBitmap.imageResource(id = R.drawable.tom_alternate)
+        jerryImageData?.let { imageData ->
+            val bitmap = remember(imageData) {
+                BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+            }
+            bitmap?.let {
+                if(howManyDodges.value==0) jerryBitmap = bitmap.asImageBitmap()
+            }
+        }
+        var tomBitmap = ImageBitmap.imageResource(id = R.drawable.tom_alternate)
+        tomImageData?.let { imageData ->
+            val bitmap = remember(imageData) {
+                BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+            }
+            bitmap?.let {
+                tomBitmap = bitmap.asImageBitmap()
+            }
+        }
         val gunBitmap = when(gunType.value) {
             0 -> ImageBitmap.imageResource(id = R.drawable.gun_no_bg)
             1 -> ImageBitmap.imageResource(id = R.drawable.ak_remove_bg)
@@ -581,24 +679,26 @@ fun gamePageBase(navController: NavController) {
         }
         val immunityBitmap = ImageBitmap.imageResource(id = R.drawable.immunity_ring)
         Canvas(
-            modifier = Modifier.fillMaxSize().background(Color.Transparent)
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Transparent)
         ) {
             when(currentPositionOfChar.value) {
                 1-> {
-                    xOffsetForTomCanvas.value = -50f
-                    xOffsetForJerryCanvas.value = -350f
+                    xOffsetForTomCanvas.value = 50f
+                    xOffsetForJerryCanvas.value = -450f
                     xOffsetForGunCanvas.value = 200f
                     xOffsetForImmunityCanvas.value = -100f
                 }
                 2-> {
-                    xOffsetForTomCanvas.value = size.width/3
+                    xOffsetForTomCanvas.value = size.width/3 + 100
                     xOffsetForJerryCanvas.value = size.width/3
                     xOffsetForGunCanvas.value = size.width/3 + 300f
                     xOffsetForImmunityCanvas.value = size.width/3 + 100f
                 }
                 3-> {
-                    xOffsetForTomCanvas.value = 2 * size.width/3
-                    xOffsetForJerryCanvas.value = size.width - 100
+                    xOffsetForTomCanvas.value = 2 * size.width/3 + 100
+                    xOffsetForJerryCanvas.value = size.width - 200
                     xOffsetForGunCanvas.value = size.width-100f
                     xOffsetForImmunityCanvas.value = size.width - 100f
                 }
@@ -642,6 +742,7 @@ fun gamePageBase(navController: NavController) {
             }
         }
     }
+
     val shotFired = remember { mutableStateOf(false) }
     val bulletXOffset = remember { mutableFloatStateOf(0f) }
     val bulletYOffset = remember { mutableFloatStateOf(3450f) }
@@ -888,14 +989,60 @@ fun gamePageBase(navController: NavController) {
         }
     }
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 10.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         WordHandling()
+    }
+    LaunchedEffect(wordChanged.value) {
+        if(wordChanged.value) {
+            delay(3000L)
+            wordChanged.value = false
+        }
+    }
+    if(wordChanged.value) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Card(
+                modifier = Modifier.size(150.dp, 60.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = complimentOfRandomWord.value.uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = Color.Blue
+                        )
+                        Text(
+                            text = randomWord.value.uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = Color.Red
+                        )
+                    }
+                }
+            }
+        }
+        playCollectingLetterSound(context = localContext)
     }
 }
 
 @Composable
-fun gamePageObstacles(navController: NavController, cheeseCount : MutableState<Int> , count : MutableState<Int>) {
+fun gamePageObstacles(navController: NavController, cheeseCount : MutableState<Int> , count : MutableState<Int> , obstacleImageData: ByteArray?) {
     AnimatedVisibility(
         visible = true,
         enter = slideInVertically(
@@ -929,7 +1076,7 @@ fun gamePageObstacles(navController: NavController, cheeseCount : MutableState<I
                     ObstacleCourseRequest(extent = 1)
                 )
                 responseForObstacleCourse.body()?.let {
-                    val type = Random.nextInt(0,4)
+                    val type = Random.nextInt(0,5)
                     when(it.obstacleCourse[0]) {
                         "L" -> {
                             val lane = 1
@@ -961,13 +1108,13 @@ fun gamePageObstacles(navController: NavController, cheeseCount : MutableState<I
         }
 
         for (obs in obstacleList) {
-            checkingPage(obs,cheeseCount,count)
+            checkingPage(obs,cheeseCount,count , obstacleImageData)
         }
     }
 }
 
 val obstacleList = mutableListOf<Obstacle>()
-val typesOfObstacles = listOf<String>("Lake","Lion","tree","Cheese")
+val typesOfObstacles = listOf<String>("Lake","Lion","tree","Cheese","GivenObstacle")
 val playCollision = mutableStateOf(false)
 val howManyDodges = mutableIntStateOf(0)
 

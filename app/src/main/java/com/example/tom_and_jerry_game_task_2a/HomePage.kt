@@ -77,8 +77,11 @@ val showSettings = mutableStateOf(false)
 
 val lightMode = mutableStateOf(true)
 val randomWord = mutableStateOf("")
+val complimentOfRandomWord = mutableStateOf("")
 
-//letters ain't getting displayed on screen .. fix it mate
+//differentiate between the captured and yet to be captured letters in the random word
+//third gift reward or punishment implementation to be done ..
+//rest is done I guess
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -344,8 +347,10 @@ fun checkLetterCollisions(
         randomWordList.first().yOffset.value in collisionCheckingYOffset.value - 50f .. collisionCheckingYOffset.value + 50f
     ) {
         randomWordList.remove(randomWordList.first())
+        complimentOfRandomWord.value += randomWord.value[0]
         randomWord.value = randomWord.value.drop(1)
         Log.d("randomWordChanged?" , randomWord.value)
+        wordChanged.value = true
     }
     else if(
         randomWordList.isNotEmpty() &&
@@ -398,7 +403,7 @@ fun LetterOnScreen(randomWordList: SnapshotStateList<LetterChar>) {
             while (true) {
                 delay(10L)
                 if(randomWordList.isNotEmpty()) {
-                    randomWordList.first().yOffset.value += 5
+                    randomWordList.first().yOffset.value += 9
                 }
                 checkLetterCollisions(collisionCheckingYOffset, randomWordList)
             }
