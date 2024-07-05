@@ -522,7 +522,7 @@ fun gamePageBase(navController: NavController) {
             }
         }
     }
-    mediaPlayer.setVolume(1.0f,1.0f)
+//    mediaPlayer.setVolume(1.0f,1.0f)
 
     LaunchedEffect(playJumpingSound.value) {
         if(playJumpingSound.value) {
@@ -686,13 +686,13 @@ fun gamePageBase(navController: NavController) {
                 }
                 2-> {
                     xOffsetForTomCanvas.value = size.width/3 + 100
-                    xOffsetForJerryCanvas.value = size.width/3
+                    xOffsetForJerryCanvas.value = size.width/3 - 50
                     xOffsetForGunCanvas.value = size.width/3 + 300f
                     xOffsetForImmunityCanvas.value = size.width/3 + 100f
                 }
                 3-> {
-                    xOffsetForTomCanvas.value = 2 * size.width/3 + 100
-                    xOffsetForJerryCanvas.value = size.width - 200
+                    xOffsetForTomCanvas.value = 2 * size.width/3 + 120
+                    xOffsetForJerryCanvas.value = size.width - 230
                     xOffsetForGunCanvas.value = size.width-100f
                     xOffsetForImmunityCanvas.value = size.width - 100f
                 }
@@ -1103,9 +1103,7 @@ fun gamePageObstacles(navController: NavController, cheeseCount : MutableState<I
             }
         }
 
-        if(gameEnded.value){
-            result(navController,count,cheeseCount)
-        }
+        result(navController,count,cheeseCount)
 
         for (obs in obstacleList) {
             checkingPage(obs,cheeseCount,count , obstacleImageData)
@@ -1171,105 +1169,107 @@ suspend fun checkCollisions(obs : Obstacle, cheeseCount: MutableState<Int>, coun
 @Composable
 fun result(navController: NavController , count: MutableState<Int> , cheeseCount: MutableState<Int>) {
 
-    val localContext = LocalContext.current
-    val sharedPreferences = localContext.getSharedPreferences("Cheese Chase" , Context.MODE_PRIVATE)
+    if(gameEnded.value) {
 
-    if(score.value > getSavedText(sharedPreferences , "High Score").toInt()) {
-        saveText(sharedPreferences , "High Score" , score.value.toString())
-    }
+        val localContext = LocalContext.current
+        val sharedPreferences =
+            localContext.getSharedPreferences("Cheese Chase", Context.MODE_PRIVATE)
 
-    if(playerWantsSound.value) {
-        playWinSound(context = localContext)
-    }
+        if (score.value > getSavedText(sharedPreferences, "High Score").toInt()) {
+            saveText(sharedPreferences, "High Score", score.value.toString())
+        }
 
-    AlertDialog(
-        onDismissRequest = { /*TODO*/ },
-        modifier = Modifier.size(width = 300.dp, height = 350.dp)
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxSize()
-                .scale(1.3f),
-            colors = CardDefaults.cardColors(containerColor = Color(62, 64, 118)),
+        if (playerWantsSound.value) {
+            playWinSound(context = localContext)
+        }
+
+        AlertDialog(
+            onDismissRequest = { /*TODO*/ },
+            modifier = Modifier.size(width = 300.dp, height = 350.dp)
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Card(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .scale(1.3f),
+                colors = CardDefaults.cardColors(containerColor = Color(62, 64, 118)),
             ) {
-                Spacer(modifier = Modifier.padding(top = 30.dp))
-                Card(
-                    modifier = Modifier
-                        .size(150.dp , 30.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
-                    )
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                    Spacer(modifier = Modifier.padding(top = 30.dp))
+                    Card(
+                        modifier = Modifier
+                            .size(150.dp, 30.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        )
                     ) {
-                        Text(text = "SCORE : ${score.value}" , fontSize = 18.sp)
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(text = "SCORE : ${score.value}", fontSize = 18.sp)
+                        }
                     }
-                }
-                Spacer(modifier = Modifier.padding(top = 10.dp))
-                Column(modifier = Modifier.size(150.dp,150.dp)) {
-                    Image(
-                        painter = painterResource(id = R.drawable.wholesome),
-                        contentDescription = "result",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                Spacer(modifier = Modifier.padding(top = 10.dp))
-                Button(
-                    onClick = {
-                        count.value = 0
-                        cheeseCount.value = 0
-                        gameEnded.value = false
-                        currentPositionOfChar.value = 1
-                        previousPositionOfChar.value = 1
-                        score.value = 0
-                        multiplier.value = 1f
-                        immunity.value = false
-                        scoreOnlyMultiplier.value = 1f
-                        obsOnlyMultiplier.value = 1f
-                        obstacleList.clear()
-                        navController.navigate("gamePageBase")
-                        firstBoxVal.value = "PLAYER 1"
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0, 190, 255),
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.size(width = 150.dp, height = 40.dp)
-                ) {
-                    Text(text = "Play Again" , fontSize = 18.sp)
-                }
-                Spacer(modifier = Modifier.padding(top = 15.dp))
-                Button(
-                    onClick = {
-                        count.value = 0
-                        cheeseCount.value = 0
-                        gameEnded.value = false
-                        currentPositionOfChar.value = 1
-                        previousPositionOfChar.value = 1
-                        score.value = 0
-                        multiplier.value = 1f
-                        immunity.value = false
-                        scoreOnlyMultiplier.value = 1f
-                        obsOnlyMultiplier.value = 1f
-                        obstacleList.clear()
-                        navController.navigate("gamePageBase")
-                        firstBoxVal.value = "PLAYER 1"
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Red,
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.size(width = 150.dp, height = 40.dp)
-                ) {
-                    Text(text = "Home" , fontSize = 18.sp)
+                    Spacer(modifier = Modifier.padding(top = 10.dp))
+                    Column(modifier = Modifier.size(150.dp, 150.dp)) {
+                        Image(
+                            painter = painterResource(id = R.drawable.wholesome),
+                            contentDescription = "result",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Spacer(modifier = Modifier.padding(top = 10.dp))
+                    Button(
+                        onClick = {
+                            navController.navigate("gamePageBase")
+                            count.value = 0
+                            cheeseCount.value = 0
+                            gameEnded.value = false
+                            currentPositionOfChar.value = 1
+                            previousPositionOfChar.value = 1
+                            score.value = 0
+                            multiplier.value = 1f
+                            immunity.value = false
+                            scoreOnlyMultiplier.value = 1f
+                            obsOnlyMultiplier.value = 1f
+                            obstacleList.clear()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0, 190, 255),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.size(width = 150.dp, height = 40.dp)
+                    ) {
+                        Text(text = "Play Again", fontSize = 18.sp)
+                    }
+                    Spacer(modifier = Modifier.padding(top = 15.dp))
+                    Button(
+                        onClick = {
+                            navController.navigate("homePage")
+                            count.value = 0
+                            cheeseCount.value = 0
+                            gameEnded.value = false
+                            currentPositionOfChar.value = 1
+                            previousPositionOfChar.value = 1
+                            score.value = 0
+                            multiplier.value = 1f
+                            immunity.value = false
+                            scoreOnlyMultiplier.value = 1f
+                            obsOnlyMultiplier.value = 1f
+                            obstacleList.clear()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Red,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.size(width = 150.dp, height = 40.dp)
+                    ) {
+                        Text(text = "Home", fontSize = 18.sp)
+                    }
                 }
             }
         }
