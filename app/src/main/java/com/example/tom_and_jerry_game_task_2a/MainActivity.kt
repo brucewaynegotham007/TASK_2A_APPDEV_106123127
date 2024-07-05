@@ -697,7 +697,13 @@ fun gamePageBase(navController: NavController) {
                     xOffsetForImmunityCanvas.value = size.width - 100f
                 }
             }
-//            Log.d("canvas width", size.width.toString())
+            val tomYOffset = when(count.value) {
+                1 -> 200f
+                2 -> 400f
+                3 -> 600f
+                4 -> 800f
+                else -> 1000f
+            }
             withTransform({
                 scale(scale = 0.5f)
             }) {
@@ -712,7 +718,7 @@ fun gamePageBase(navController: NavController) {
                 if(count.value>0) {
                     drawImage(
                         image = tomBitmap,
-                        topLeft = Offset(xOffsetTomCanvas, 3*size.height/4 + yOffsetJerry + jumpHeight.value -100)
+                        topLeft = Offset(xOffsetTomCanvas, 9*size.height/10 + yOffsetJerry + jumpHeight.value - tomYOffset)
                     )
                 }
             }
@@ -1136,6 +1142,7 @@ suspend fun checkCollisions(obs : Obstacle, cheeseCount: MutableState<Int>, coun
                     howManyDodges.value = responseForHitHindrance.amount
                 }
                 3 -> {
+                    count.value++
                     //bring tom closer by a certain amount
                 }
             }
