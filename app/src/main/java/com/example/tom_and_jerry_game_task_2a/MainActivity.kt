@@ -298,19 +298,13 @@ fun checkingPage(obs: Obstacle, cheeseCount: MutableState<Int>, count: MutableSt
                 modifier = Modifier
                     .fillMaxSize()
                     .background(color = Color.Transparent)
-                    .graphicsLayer {
-                        if (obs.type == "GivenObstacle") {
-                            scaleX = 0.5f
-                            scaleY = 0.5f
-                        }
-                    }
             ) {
                 collisionCheckingYOffset.value = size.height/2 - 50f
                 if(obs.type=="GivenObstacle") {
                     when (obs.lane) {
-                        1 -> xOffset = size.width/6 - 50f
-                        2 -> xOffset = size.width/2 - 125f
-                        3 -> xOffset = 4*size.width/5
+                        1 -> xOffset = size.width/6 - 150f
+                        2 -> xOffset = size.width/2 - 175f
+                        3 -> xOffset = 4*size.width/5 - 200f
                         else -> xOffset = 0f
                     }
                 }
@@ -614,14 +608,14 @@ fun gamePageBase(navController: NavController) {
     LaunchedEffect(Unit) {
         launch {
             jumpHeight.animateTo(
-                targetValue = -100f,
+                targetValue = -50f,
                 animationSpec = infiniteRepeatable(
                     animation = tween(durationMillis = 150, easing = LinearEasing),
                     repeatMode = RepeatMode.Reverse
                 )
             )
             jumpHeightCanvas.animateTo(
-                targetValue = -100f,
+                targetValue = -50f,
                 animationSpec = infiniteRepeatable(
                     animation = tween(durationMillis = 150, easing = LinearEasing),
                     repeatMode = RepeatMode.Reverse
