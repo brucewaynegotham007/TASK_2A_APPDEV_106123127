@@ -176,7 +176,7 @@ fun powerUps(cheeseCount: MutableState<Int> , count: MutableState<Int>) {
                             painter = painterResource(id = R.drawable.extra_bullet_icon),
                             contentDescription = "extra bullet",
                             modifier = Modifier.clickable {
-                                cheeseCount.value += 4
+                                cheeseCount.value += 1
                                 showExtraBullet.value = false
                             }
                         )
